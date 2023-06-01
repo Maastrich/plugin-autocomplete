@@ -2,7 +2,7 @@ import {Config, Command} from '@oclif/core'
 import * as path from 'path'
 import {Plugin as IPlugin} from '@oclif/core/lib/interfaces'
 import {expect} from 'chai'
-import ZshCompWithSpaces from '../../src/autocomplete/zsh'
+import ZshCompletionFunction from '../../src/autocomplete/zsh'
 
 // autocomplete will throw error on windows ci
 const {default: skipWindows} = require('../helpers/runtest')
