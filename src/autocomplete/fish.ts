@@ -142,7 +142,7 @@ export default class FishCompletionFunction extends CompletionFunction {
     `
   }
 
-  protected get completionScript(): string {
+  protected getCompletionScript(): string {
     let compFunc = `# Fish completion for ${this.config.bin}\n`
     compFunc += fishNeedsCommand
     compFunc += fishUsingCommand

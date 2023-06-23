@@ -32,8 +32,8 @@ export type Topic = {
 };
 
 export enum TopicSeparator {
-  Colon = 'colon',
-  Space = 'space',
+  Colon = ':',
+  Space = ' ',
 }
 export default abstract class CompletionFunction {
   static shouldGenerateCompletion(_: Config): boolean {
@@ -62,10 +62,10 @@ export default abstract class CompletionFunction {
   protected envPrefix = this.config.bin.toUpperCase().replace(/-/g, '_');
 
   constructor(protected config: Config) {
-    const supportSpaces = this.config.topicSeparator === ' '
+    const supportSpaces = this.config.topicSeparator === TopicSeparator.Space
 
     if (
-      process.env.OCLIF_AUTOCOMPLETE_TOPIC_SEPARATOR === 'colon' ||
+      process.env.OCLIF_AUTOCOMPLETE_TOPIC_SEPARATOR === TopicSeparator.Colon ||
       !supportSpaces
     ) {
       this.topicSeparator = TopicSeparator.Colon
@@ -183,7 +183,7 @@ export default abstract class CompletionFunction {
 
   protected abstract getSetupScript(): null | string;
 
-  protected abstract get completionScript(): string;
+  protected abstract getCompletionScript(): string;
 
   public async write(): Promise<void> {
     const setupScript = this.getSetupScript()
@@ -192,6 +192,6 @@ export default abstract class CompletionFunction {
     }
     await ensureDir(this.completionScriptDir)
     const completionScriptPath = join(this.completionScriptDir, this.filename)
-    await writeFile(completionScriptPath, this.completionScript)
+    await writeFile(completionScriptPath, this.getCompletionScript())
   }
 }

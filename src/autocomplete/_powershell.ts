@@ -1,30 +1,65 @@
-import {Config} from '@oclif/core'
-
-import {join} from 'path'
 import * as util from 'util'
+import {EOL} from 'os'
+import {Config, Interfaces, Command} from '@oclif/core'
 
-import CompletionFunction, {
-  CommandCompletion,
-  TopicSeparator,
-  sanitizeSummary,
-} from './completion-function'
+function sanitizeSummary(description?: string): string {
+  if (description === undefined) {
+    // PowerShell:
+    // [System.Management.Automation.CompletionResult] will error out if will error out if you pass in an empty string for the summary.
+    return ' '
+  }
+  return description
+  .replace(/"/g, '""') // escape double quotes.
+  .replace(/`/g, '``') // escape backticks.
+  .split(EOL)[0] // only use the first line
+}
 
-export default class PowershellCompletionFunction extends CompletionFunction {
-  static shouldGenerateCompletion(config: Config): boolean {
-    return (
-      config.shell === 'powershell' &&
-      config.topicSeparator === TopicSeparator.Colon
-    )
+type CommandCompletion = {
+  id: string;
+  summary: string;
+  flags: CommandFlags;
+};
+
+type CommandFlags = {
+  [name: string]: Command.Flag.Cached;
+};
+
+type Topic = {
+  name: string;
+  description: string;
+};
+
+export default class PowerShellComp {
+  protected config: Config;
+
+  private topics: Topic[];
+
+  private _coTopics?: string[];
+
+  private commands: CommandCompletion[];
+
+  constructor(config: Config) {
+    this.config = config
+    this.topics = this.getTopics()
+    this.commands = this.getCommands()
   }
 
-  protected name = 'powershell';
+  private get coTopics(): string[] {
+    if (this._coTopics) return this._coTopics
 
-  protected get filename(): string {
-    return `${this.config.bin}.ps1`
-  }
+    const coTopics: string[] = []
 
-  getSetupScript(): string {
-    return `. ${join(this.completionScriptDir, this.filename)}`
+    for (const topic of this.topics) {
+      for (const cmd of this.commands) {
+        if (topic.name === cmd.id) {
+          coTopics.push(topic.name)
+        }
+      }
+    }
+
+    this._coTopics = coTopics
+
+    return this._coTopics
   }
 
   private genCmdHashtable(cmd: CommandCompletion): string {
@@ -132,7 +167,7 @@ ${flaghHashtables.join('\n')}
     return leafTpl
   }
 
-  protected getCompletionScript(): string {
+  public generate(): string {
     const genNode = (partialId: string): Record<string, any> => {
       const node: Record<string, any> = {}
 
@@ -149,7 +184,7 @@ ${flaghHashtables.join('\n')}
         ) {
           nextArgs.push(topicNameSplit[depth])
 
-          if (this.commandTopics.includes(t.name)) {
+          if (this.coTopics.includes(t.name)) {
             node[topicNameSplit[depth]] = {
               ...genNode(`${partialId}:${topicNameSplit[depth]}`),
             }
@@ -165,7 +200,7 @@ ${flaghHashtables.join('\n')}
       for (const c of this.commands) {
         const cmdIdSplit = c.id.split(':')
 
-        if (partialId === c.id && this.commandTopics.includes(c.id)) {
+        if (partialId === c.id && this.coTopics.includes(c.id)) {
           node._command = c.id
         }
 
@@ -189,7 +224,7 @@ ${flaghHashtables.join('\n')}
     // Collect top-level topics and generate a cmd tree node for each one of them.
     this.topics.forEach(t => {
       if (!t.name.includes(':')) {
-        if (this.commandTopics.includes(t.name)) {
+        if (this.coTopics.includes(t.name)) {
           commandTree[t.name] = {
             ...genNode(t.name),
           }
@@ -206,7 +241,7 @@ ${flaghHashtables.join('\n')}
 
     // Collect top-level commands and add a cmd tree node with the command ID.
     this.commands.forEach(c => {
-      if (!c.id.includes(':') && !this.commandTopics.includes(c.id)) {
+      if (!c.id.includes(':') && !this.coTopics.includes(c.id)) {
         commandTree[c.id] = {
           _command: c.id,
         }
@@ -349,15 +384,87 @@ $scriptblock = {
       }
     }
 }
-Register-ArgumentCompleter -Native -CommandName ${
-  this.config.binAliases ?
-    `@(${[...this.config.binAliases, this.config.bin]
-    .map(alias => `"${alias}"`)
-    .join(',')})` :
-    this.config.bin
-} -ScriptBlock $scriptblock
+Register-ArgumentCompleter -Native -CommandName ${this.config.binAliases ? `@(${[...this.config.binAliases, this.config.bin].map(alias => `"${alias}"`).join(',')})` : this.config.bin} -ScriptBlock $scriptblock
 `
 
     return compRegister
+  }
+
+  private getTopics(): Topic[] {
+    const topics = this.config.topics
+    .filter((topic: Interfaces.Topic) => {
+      // it is assumed a topic has a child if it has children
+      const hasChild = this.config.topics.some(subTopic =>
+        subTopic.name.includes(`${topic.name}:`),
+      )
+      return hasChild
+    })
+    .sort((a, b) => {
+      if (a.name < b.name) {
+        return -1
+      }
+      if (a.name > b.name) {
+        return 1
+      }
+      return 0
+    })
+    .map(t => {
+      const description = t.description ?
+        sanitizeSummary(t.description) :
+        `${t.name.replace(/:/g, ' ')} commands`
+
+      return {
+        name: t.name,
+        description,
+      }
+    })
+
+    return topics
+  }
+
+  private getCommands(): CommandCompletion[] {
+    const cmds: CommandCompletion[] = []
+
+    this.config.plugins.forEach(p => {
+      p.commands.forEach(c => {
+        if (c.hidden) return
+        const summary = sanitizeSummary(c.summary || c.description)
+        const flags = c.flags
+        cmds.push({
+          id: c.id,
+          summary,
+          flags,
+        })
+
+        c.aliases.forEach(a => {
+          cmds.push({
+            id: a,
+            summary,
+            flags,
+          })
+
+          const split = a.split(':')
+
+          let topic = split[0]
+
+          // Completion funcs are generated from topics:
+          // `force` -> `force:org` -> `force:org:open|list`
+          //
+          // but aliases aren't guaranteed to follow the plugin command tree
+          // so we need to add any missing topic between the starting point and the alias.
+          for (let i = 0; i < split.length - 1; i++) {
+            if (!this.topics.find(t => t.name === topic)) {
+              this.topics.push({
+                name: topic,
+                description: `${topic.replace(/:/g, ' ')} commands`,
+              })
+            }
+            topic += `:${split[i + 1]}`
+          }
+        })
+      })
+    })
+
+    return cmds
   }
 }

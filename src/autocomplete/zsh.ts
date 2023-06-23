@@ -99,6 +99,7 @@ _${this.config.bin}() {
 
 _${this.config.bin}
 `
+    return compFunc
   }
 
   private genZshFlagSpecs(Klass: any): string {
@@ -460,7 +461,7 @@ _${cliBin}
     `.replace(/^\s+/gm, '')
   }
 
-  protected get completionScript(): string {
+  protected getCompletionScript(): string {
     const compFunc = `# Zsh completion for ${this.config.bin}\n`
 
     switch (this.topicSeparator) {

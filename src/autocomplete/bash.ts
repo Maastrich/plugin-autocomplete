@@ -170,7 +170,7 @@ complete -o default -F _${this.config.bin}_autocomplete ${this.config.bin}
 `
   }
 
-  protected get completionScript(): string {
+  protected getCompletionScript(): string {
     switch (this.topicSeparator) {
     case TopicSeparator.Colon:
       return this.generateWithColons()
