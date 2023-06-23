@@ -171,7 +171,8 @@ describe('powershell completion', () => {
   it('generates a valid completion file.', () => {
     config.bin = 'test-cli'
     const powerShellComp = new PowerShellComp(config as Config)
-    expect(powerShellComp.generate()).to.equal(`
+    // @ts-expect-error protexted method
+    expect(powerShellComp.getCompletionScript()).to.equal(`
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 
@@ -353,7 +354,8 @@ Register-ArgumentCompleter -Native -CommandName test-cli -ScriptBlock $scriptblo
     config.bin = 'test-cli'
     config.binAliases = ['test']
     const powerShellComp = new PowerShellComp(config as Config)
-    expect(powerShellComp.generate()).to.equal(`
+    // @ts-expect-error protected method
+    expect(powerShellComp.getCompletionScript()).to.equal(`
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 
@@ -535,7 +537,8 @@ Register-ArgumentCompleter -Native -CommandName @("test","test-cli") -ScriptBloc
     config.bin = 'test-cli'
     config.binAliases = ['test', 'test1']
     const powerShellComp = new PowerShellComp(config as Config)
-    expect(powerShellComp.generate()).to.equal(`
+    // @ts-expect-error protected method
+    expect(powerShellComp.getCompletionScript()).to.equal(`
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 

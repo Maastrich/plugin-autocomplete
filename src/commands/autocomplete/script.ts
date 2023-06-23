@@ -4,9 +4,9 @@ import * as path from 'path'
 import {AutocompleteBase} from '../../base'
 
 export default class Script extends AutocompleteBase {
-  static description = 'outputs autocomplete config script for shells'
+  static description = 'outputs autocomplete config script for shells';
 
-  static hidden = true
+  static hidden = true;
 
   static args = {
     shell: Args.string({
@@ -20,27 +20,14 @@ export default class Script extends AutocompleteBase {
     const {args} = await this.parse(Script)
     const shell = args.shell || this.config.shell
 
-    const binUpcase = this.cliBinEnvVar
-    const shellUpcase = shell.toUpperCase()
-    if (shell === 'powershell') {
-      const completionFuncPath = path.join(
-        this.config.cacheDir,
-        'autocomplete',
-        'functions',
-        'powershell',
-        `${this.cliBin}.ps1`,
-      )
-      this.log(
-        `. ${completionFuncPath}`,
-      )
-    } else {
-      this.log(
-        `${this.prefix}${binUpcase}_AC_${shellUpcase}_SETUP_PATH=${path.join(
-          this.autocompleteCacheDir,
-          `${shell}_setup`,
-        )} && test -f $${binUpcase}_AC_${shellUpcase}_SETUP_PATH && source $${binUpcase}_AC_${shellUpcase}_SETUP_PATH;${this.suffix}`,
-      )
-    }
+    this.log(
+      this.prefix +
+        this.completionsFunctions[shell].launchSetupScript({
+          envPrefix: this.cliBinEnvVar,
+          setupPath: path.join(this.autocompleteCacheDir, `${shell}_setup`),
+        }) +
+        this.suffix,
+    )
   }
 
   private get prefix(): string {

@@ -11,7 +11,7 @@ export default class Index extends AutocompleteBase {
   static args = {
     shell: Args.string({
       description: 'Shell type',
-      options: ['zsh', 'bash', 'powershell'],
+      options: ['zsh', 'bash', 'powershell', 'fish'],
       required: false,
     }),
   }
@@ -25,6 +25,7 @@ export default class Index extends AutocompleteBase {
     '$ <%= config.bin %> autocomplete bash',
     '$ <%= config.bin %> autocomplete zsh',
     '$ <%= config.bin %> autocomplete powershell',
+    '$ <%= config.bin %> autocomplete fish',
     '$ <%= config.bin %> autocomplete --refresh-cache',
   ]
 
